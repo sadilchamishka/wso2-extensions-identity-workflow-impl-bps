@@ -1,6 +1,6 @@
 # Configuring the Workflow connector
 
-To use workflow with WSO2 Identity Server 7.0.0 onwards, you need to follow below steps. 
+To use workflow with WSO2 Identity Server 7.2.0 onwards, follow the steps below.
 
 # Instructions to enable workflow
 
@@ -11,51 +11,45 @@ To use workflow with WSO2 Identity Server 7.0.0 onwards, you need to follow belo
 5. Copy 4 XML files in xml folder to `<IS_HOME>/repository/conf`.
 6. Add all jars in the dropins folder to `<IS_HOME>/repository/components/dropins`.
 7. Copy weblib jars to `<IS_HOME>/repository/deployment/server/webapps/api/WEB-INF/lib`.
-8. To enable APIs related to approval,
-   - **For versions below IS-7.1.0**
-      - Add `<import resource="classpath:META-INF/cxf/user-approval-v1-cxf.xml"/>` under beans starting tag and add `<bean class="org.wso2.carbon.identity.rest.api.user.approval.v1.MeApi"/>` under `<jaxrs:server id="users" address="/users/v1">` to beans.xml located in `<IS_HOME>/repository/deployment/server/webapps/api/WEB-INF/beans.xml`.
-   - **For IS-7.1.0 onwards** 
-      - Add `org.wso2.carbon.identity.rest.api.user.approval.v1.MeApi` under `<init-params>` tag of `<jaxrs.serviceClasses>` under `<servlet-name>UserV1Servlet</servlet-name>` to beans.xml located in `<IS_HOME>/repository/deployment/server/webapps/api/WEB-INF/web.xml`.
-9. Add listener and handler to `<IS_HOME>/repository/conf/deployment.toml`
+8. To enable the approval V1 REST API, add `org.wso2.carbon.identity.rest.api.user.approval.v1.MeApi` under the `<init-params>` tag of `<jaxrs.serviceClasses>` under `<servlet-name>UserV1Servlet</servlet-name>` in web.xml located at `<IS_HOME>/repository/deployment/server/webapps/api/WEB-INF`.
+9. Add the following handler to `<IS_HOME>/repository/conf/deployment.toml`.
 
 ```
-[[event_listener]]
-id = "mgt_workflow_listner"
-type = "org.wso2.carbon.user.core.listener.UserOperationEventListener"
-name = "org.wso2.carbon.user.mgt.workflow.userstore.UserStoreActionListener"
-order = 10
-
 [[event_handler]]
 name= "WorkflowPendingUserAuthnHandler"
 subscriptions =["PRE_AUTHENTICATION"]
-
-```
-10. Add below config to `<IS_HOME>/repository/conf/deployment.toml` and enable approval from UI console.
-```
-    [console.approvals]
-    enabled=true
 ```
 
-11. Re-enable workflow approval API by adding the configuration below to the `<IS_HOME>/repository/conf/deployment.toml`
+10. Re-enable the workflow approval API by adding the configuration below to `<IS_HOME>/repository/conf/deployment.toml`.
+
+It is recommended to configure the approval V1 API in line with the new authorization model. This registers the new API resource with scopes and exposes the API only to the `internal_humantask_view` scope.
+Since the authorization policy is set to `No Authorization Policy`, authorizing the API for the corresponding application is enough to obtain an access token with the required scope.
 
 ```
 [[api_resources]]
-name = "workflow Approval API"
-identifier = "/me/approval-tasks"
-requiresAuthorization = true
+name = "Workflow Approval V1 API"
+identifier = "/v1/me/approval-tasks"
+requiresAuthorization = false
 type = "TENANT"
-description = "API representation of the workflow Approval API"
+description = "API representation of the workflow Approval V1 API"
 
 [[api_resources.scopes]]
-displayName = "View Workflow Approvals"
+displayName = "Manage Approvals"
 name = "internal_humantask_view"
 
+[[resource.access_control]]
+context="(.*)/api/users/v1/me/approval-tasks(.*)"
+secure=true
+http_method="GET, HEAD, POST, PUT, DELETE, PATCH"
+permissions=["/permission/admin/manage/humantask/viewtasks"]
+scopes=["internal_humantask_view"]
+
 ```
-### Please note the following based on your IS version:
-
-- WSO2 Identity Server 7.2.0 onwards:
-
-  - In the WSO2 Identity Server Management Console, when creating a Workflow Definition, select the `ApprovalWorkflow` template in the Workflow Template step. This workflow definition can then be associated with any identity operation that supports workflows.
+### NOTE:
+  - Existing workflows can only be managed from the legacy Carbon console.
+  - When creating a Workflow Definition, select the `ApprovalWorkflow` template in the Workflow Template step.
+  - The approvals view has moved from the Console app to My Account, and it only supports approval tasks related to the new workflow engine.
+  - The ADD_USER workflow event has been split into ADD_USER (user onboarding by an admin) and SELF_REGISTER_USER (user self-registration) workflows.
 
 # [Related REST APIs to workflow](https://is.docs.wso2.com/en/latest/apis/approvals-rest-api/)
 
